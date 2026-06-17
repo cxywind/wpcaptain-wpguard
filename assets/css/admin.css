@@ -1,0 +1,38 @@
+/* Risk labels */
+.risk-none {
+    display: inline-block;
+    background: #c6e1c6;
+    color: #2e4453;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.risk-low {
+    display: inline-block;
+    background: #f0f6e8;
+    color: #4a4a4a;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.risk-medium {
+    display: inline-block;
+    background: #fef8ee;
+    color: #e6a817;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.risk-high {
+    display: inline-block;
+    background: #fce4e4;
+    color: #c00;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* Tab styling */
+.tab-content {
+    margin-top: 20px;
+}
