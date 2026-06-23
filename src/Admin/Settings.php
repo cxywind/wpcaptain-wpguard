@@ -3,7 +3,7 @@
  * 后台设置页面主类
  *
  * 负责注册菜单、生成选项卡界面并处理设置保存。
- * 本版本不再依赖 admin-post.php，改为页面内自处理表单。
+ * 保存时增加调试日志，便于定位问题。
  *
  * @package WpGuard
  * @subpackage Admin

@@ -12,7 +12,8 @@ namespace WpGuard\Compatibility;
  * Class Multisite
  *
  * 管理多站点网络激活时的选项继承与覆盖逻辑。
- * 子站点可以自定义设置，未自定义时自动继承网络默认值。
+ * - 网络管理后台：直接读写网络站点选项（wp_sitemeta）
+ * - 子站点后台/前台：优先使用子站点自身选项（wp_options），若无则回退到网络选项
  */
 class Multisite {
     /**
@@ -45,7 +46,7 @@ class Multisite {
     }
 
     /**
-     * 获取选项值（考虑多站点继承）
+     * 获取选项值（自动处理多站点上下文）
      *
      * @param string $key     选项键名（不含前缀）
      * @param mixed  $default 默认值
@@ -53,17 +54,23 @@ class Multisite {
      */
     public static function get_option( $key, $default = [] ) {
         $option_name = 'wpguard_' . $key;
+
+        // 网络激活时
         if ( self::is_network_activated() ) {
-            // 网络模式下，优先使用子站点自定义值
-            if ( get_option( $option_name . '_custom' ) ) {
-                $value = get_option( $option_name, null );
-                if ( ! is_null( $value ) ) {
-                    return $value;
-                }
+            // 网络管理后台：直接返回网络级设置
+            if ( is_network_admin() ) {
+                return get_site_option( $option_name, $default );
             }
-            // 否则返回网络默认值
+            // 子站点（前台或后台）：优先使用子站点自己的设置
+            $local = get_option( $option_name, null );
+            if ( ! is_null( $local ) ) {
+                return $local;
+            }
+            // 子站点无自定义时，继承网络默认值
             return get_site_option( $option_name, $default );
         }
+
+        // 非多站点：直接返回站点选项
         return get_option( $option_name, $default );
     }
 
@@ -75,11 +82,12 @@ class Multisite {
      */
     public static function update_option( $key, $value ) {
         $option_name = 'wpguard_' . $key;
+
         if ( self::is_network_activated() && is_network_admin() ) {
+            // 网络管理员保存：写入网络站点选项
             update_site_option( $option_name, $value );
         } else {
-            // 子站点保存时标记为“自定义”
-            update_option( $option_name . '_custom', 1 );
+            // 子站点或单站点保存：写入当前站点选项
             update_option( $option_name, $value );
         }
     }
@@ -92,7 +100,6 @@ class Multisite {
     public static function delete_option( $key ) {
         $option_name = 'wpguard_' . $key;
         delete_option( $option_name );
-        delete_option( $option_name . '_custom' );
     }
 
     /**
