@@ -32,8 +32,9 @@ class Tab_BasicFilter extends Tab_Base {
      */
     public function render() {
         $settings = $this->get_settings();
+        // 表单提交到当前页面，不再使用 admin-post.php
         ?>
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+        <form method="post" action="">
             <?php wp_nonce_field( 'wpguard_save_' . $this->slug, 'wpguard_nonce' ); ?>
             <input type="hidden" name="action" value="wpguard_save_settings">
             <input type="hidden" name="tab" value="<?php echo esc_attr( $this->slug ); ?>">

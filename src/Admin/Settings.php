@@ -3,6 +3,7 @@
  * 后台设置页面主类
  *
  * 负责注册菜单、生成选项卡界面并处理设置保存。
+ * 本版本不再依赖 admin-post.php，改为页面内自处理表单。
  *
  * @package WpGuard
  * @subpackage Admin
@@ -22,14 +23,15 @@ class Settings {
     private $tabs = [];
 
     /**
-     * 初始化：注册选项卡、添加菜单和处理保存请求
+     * 初始化：注册选项卡、添加菜单
      */
     public static function init() {
         $self = new self();
         $self->register_tabs();
-        $hook = is_multisite() && \WpGuard\Compatibility\Multisite::is_network_activated() ? 'network_admin_menu' : 'admin_menu';
-        add_action( $hook, [ $self, 'add_menu' ] );
-        add_action( 'admin_post_wpguard_save_settings', [ $self, 'save_settings' ] );
+
+        // 根据多站点激活状态和当前后台类型注册菜单
+        $menu_hook = is_multisite() && \WpGuard\Compatibility\Multisite::is_network_activated() ? 'network_admin_menu' : 'admin_menu';
+        add_action( $menu_hook, [ $self, 'add_menu' ] );
     }
 
     /**
@@ -57,9 +59,79 @@ class Settings {
     }
 
     /**
+     * 在渲染页面前检查是否有表单提交，有则处理保存并重定向
+     */
+    private function maybe_handle_save() {
+        if ( ! isset( $_POST['action'] ) || $_POST['action'] !== 'wpguard_save_settings' ) {
+            return;
+        }
+
+        // 权限验证
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( '无权操作' );
+        }
+
+        $tab_slug = isset( $_POST['tab'] ) ? sanitize_key( $_POST['tab'] ) : '';
+
+        // Nonce 验证
+        if ( ! isset( $_POST['wpguard_nonce'] ) || ! wp_verify_nonce( $_POST['wpguard_nonce'], 'wpguard_save_' . $tab_slug ) ) {
+            $this->safe_redirect( [ 'error' => 'nonce' ] );
+        }
+
+        // 执行对应选项卡的保存逻辑
+        foreach ( $this->tabs as $tab ) {
+            if ( $tab->get_slug() === $tab_slug ) {
+                $tab->save( $_POST['settings'] ?? [] );
+                break;
+            }
+        }
+
+        // 保存成功重定向
+        $this->safe_redirect( [ 'saved' => 'true' ] );
+    }
+
+    /**
+     * 安全重定向到设置页面
+     *
+     * 优先使用 HTTP 重定向，失败时回退为 JavaScript 跳转。
+     *
+     * @param array $args 额外的查询参数
+     */
+    private function safe_redirect( $args = [] ) {
+        // 彻底清除所有缓冲区
+        while ( ob_get_level() ) {
+            @ob_end_clean();
+        }
+
+        $tab_slug = isset( $_POST['tab'] ) ? sanitize_key( $_POST['tab'] ) : 'basic_filter';
+        $base_args = [ 'page' => 'wpguard', 'tab' => $tab_slug ];
+        $args = array_merge( $base_args, $args );
+
+        $redirect_url = add_query_arg(
+            $args,
+            is_network_admin() ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' )
+        );
+
+        // 尝试 HTTP 重定向
+        if ( ! headers_sent() ) {
+            @wp_redirect( $redirect_url );
+            exit;
+        }
+
+        // 如果 headers 已发送，使用 JavaScript 跳转（备用方案）
+        echo '<script type="text/javascript">window.location.href = "' . esc_url( $redirect_url ) . '";</script>';
+        // 同时提供手动链接以防万一
+        echo '<p>' . esc_html__( '如果页面没有自动跳转，请点击', 'wpguard' ) . ' <a href="' . esc_url( $redirect_url ) . '">' . esc_html__( '这里', 'wpguard' ) . '</a>.</p>';
+        exit;
+    }
+
+    /**
      * 渲染设置页面及选项卡导航
      */
     public function render_page() {
+        // 优先处理表单提交
+        $this->maybe_handle_save();
+
         $current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : $this->tabs[0]->get_slug();
         ?>
         <div class="wrap">
@@ -84,30 +156,5 @@ class Settings {
             </div>
         </div>
         <?php
-    }
-
-    /**
-     * 处理设置保存（通过 admin-post.php）
-     */
-    public function save_settings() {
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( '无权操作' );
-        }
-        $tab_slug = isset( $_POST['tab'] ) ? sanitize_key( $_POST['tab'] ) : '';
-        check_admin_referer( 'wpguard_save_' . $tab_slug, 'wpguard_nonce' );
-
-        foreach ( $this->tabs as $tab ) {
-            if ( $tab->get_slug() === $tab_slug ) {
-                $tab->save( $_POST['settings'] ?? [] );
-                break;
-            }
-        }
-
-        $redirect_url = add_query_arg(
-            [ 'page' => 'wpguard', 'tab' => $tab_slug, 'saved' => 'true' ],
-            is_network_admin() ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' )
-        );
-        wp_safe_redirect( $redirect_url );
-        exit;
     }
 }
