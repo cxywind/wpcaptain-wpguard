@@ -141,15 +141,21 @@ class Path_Protect extends Base_Protection {
      */
     private function has_custom_keywords( $uri ) {
         $keywords = $this->settings['custom_keywords'];
+        // 去除可能的转义符，确保换行正确
+        $keywords = wp_unslash( $keywords );
+
         if ( empty( $keywords ) ) {
             return false;
         }
+
         $lines = array_filter( array_map( 'trim', explode( "\n", $keywords ) ) );
+
         foreach ( $lines as $word ) {
             if ( false !== stripos( $uri, $word ) ) {
                 return true;
             }
         }
+
         return false;
     }
 

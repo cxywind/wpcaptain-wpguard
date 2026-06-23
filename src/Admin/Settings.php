@@ -120,7 +120,6 @@ class Settings {
 
         // 如果 headers 已发送，使用 JavaScript 跳转（备用方案）
         echo '<script type="text/javascript">window.location.href = "' . esc_url( $redirect_url ) . '";</script>';
-        // 同时提供手动链接以防万一
         echo '<p>' . esc_html__( '如果页面没有自动跳转，请点击', 'wpguard' ) . ' <a href="' . esc_url( $redirect_url ) . '">' . esc_html__( '这里', 'wpguard' ) . '</a>.</p>';
         exit;
     }
@@ -136,6 +135,15 @@ class Settings {
         ?>
         <div class="wrap">
             <h1><?php esc_html_e( 'WpGuard 设置', 'wpguard' ); ?></h1>
+            <?php if ( isset( $_GET['saved'] ) && $_GET['saved'] === 'true' ) : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e( '设置已成功保存。', 'wpguard' ); ?></p>
+                </div>
+            <?php elseif ( isset( $_GET['error'] ) ) : ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php esc_html_e( '保存时发生错误，请重试。', 'wpguard' ); ?></p>
+                </div>
+            <?php endif; ?>
             <nav class="nav-tab-wrapper">
                 <?php foreach ( $this->tabs as $tab ) : ?>
                     <a href="?page=wpguard&tab=<?php echo esc_attr( $tab->get_slug() ); ?>"
