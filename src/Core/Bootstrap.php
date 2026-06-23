@@ -1,49 +1,53 @@
 <?php
+/**
+ * 插件启动核心
+ *
+ * @package WpGuard
+ * @subpackage Core
+ */
+
 namespace WpGuard\Core;
 
 /**
  * Class Bootstrap
- * Main plugin bootstrap.
+ *
+ * 负责插件的初始化：加载文本域、注册模块、激活/停用挂钩等。
  */
 class Bootstrap {
     use Singleton;
 
     /**
-     * Constructor.
+     * 构造函数
+     *
+     * 注册插件生命周期钩子和初始化动作。
      */
     private function __construct() {
-        // Load text domain.
         add_action( 'plugins_loaded', [ $this, 'load_textdomain' ] );
-        // Initialize all modules after plugins loaded.
         add_action( 'plugins_loaded', [ $this, 'init_modules' ], 5 );
-        // Register activation / deactivation hooks.
         register_activation_hook( WPGUARD_PATH . 'wpguard.php', [ $this, 'activate' ] );
         register_deactivation_hook( WPGUARD_PATH . 'wpguard.php', [ $this, 'deactivate' ] );
     }
 
     /**
-     * Load plugin text domain.
+     * 加载插件翻译文件
      */
     public function load_textdomain() {
         load_plugin_textdomain( 'wpguard', false, dirname( plugin_basename( WPGUARD_PATH ) ) . '/languages' );
     }
 
     /**
-     * Initialize core modules.
+     * 初始化所有功能模块
      */
     public function init_modules() {
-        // Cache handler.
-        \WpGuard\Cache\Cache_Handler::init();
-        // Multisite compatibility.
-        \WpGuard\Compatibility\Multisite::init();
-        // Protection engine (front-end).
-        \WpGuard\Protection\Protection_Engine::init();
-        // Admin settings (if in admin area).
+        \WpGuard\Cache\Cache_Handler::init();           // 缓存处理器
+        \WpGuard\Compatibility\Multisite::init();       // 多站点兼容
+        \WpGuard\Protection\Protection_Engine::init();  // 防护引擎
         if ( is_admin() ) {
-            \WpGuard\Admin\Settings::init();
+            \WpGuard\Admin\Settings::init();            // 后台设置页面
         }
-        // Logger and daily cleanup cron.
-        \WpGuard\Logger\Log_Handler::init();
+        \WpGuard\Logger\Log_Handler::init();            // 日志处理器
+
+        // 每日日志清理定时任务
         add_action( 'wpguard_daily_cleanup', [ '\WpGuard\Logger\Log_Handler', 'cleanup_logs' ] );
         if ( ! wp_next_scheduled( 'wpguard_daily_cleanup' ) ) {
             wp_schedule_event( time(), 'daily', 'wpguard_daily_cleanup' );
@@ -51,18 +55,21 @@ class Bootstrap {
     }
 
     /**
-     * Plugin activation: create log table, set defaults.
+     * 插件激活时的回调
+     *
+     * 创建日志表，如果为网络激活则设置网络默认选项。
      */
     public function activate() {
         \WpGuard\Logger\Log_Handler::create_table();
-        // Set default network options if network activated.
         if ( is_multisite() && is_plugin_active_for_network( plugin_basename( WPGUARD_PATH . 'wpguard.php' ) ) ) {
             \WpGuard\Compatibility\Multisite::set_network_defaults();
         }
     }
 
     /**
-     * Plugin deactivation: clean up cron.
+     * 插件停用时的回调
+     *
+     * 清除计划任务。
      */
     public function deactivate() {
         wp_clear_scheduled_hook( 'wpguard_daily_cleanup' );

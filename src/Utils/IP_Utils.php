@@ -1,13 +1,23 @@
 <?php
+/**
+ * IP 工具类
+ *
+ * 提供获取客户端真实 IP、IP 范围匹配等辅助方法。
+ *
+ * @package WpGuard
+ * @subpackage Utils
+ */
+
 namespace WpGuard\Utils;
 
 /**
  * Class IP_Utils
- * Utilities for IP address handling.
  */
 class IP_Utils {
     /**
-     * Get the client IP address.
+     * 获取客户端真实 IP 地址
+     *
+     * 考虑常见代理/CDN 头信息（如 Cloudflare）。
      *
      * @return string
      */
@@ -31,10 +41,10 @@ class IP_Utils {
     }
 
     /**
-     * Check if an IP is in a given CIDR range.
+     * 检查 IP 是否在指定的 CIDR 范围内
      *
-     * @param string $ip   IP address.
-     * @param string $cidr CIDR notation (e.g., 192.168.0.0/24).
+     * @param string $ip   点分十进制 IP 地址
+     * @param string $cidr CIDR 表示的网络（如 192.168.0.0/24）
      * @return bool
      */
     public static function ip_in_range( $ip, $cidr ) {

@@ -1,4 +1,4 @@
-/* Risk labels */
+/* 风险等级标签 */
 .risk-none {
     display: inline-block;
     background: #c6e1c6;
@@ -32,7 +32,7 @@
     font-size: 12px;
 }
 
-/* Tab styling */
+/* 选项卡内容间距 */
 .tab-content {
     margin-top: 20px;
 }

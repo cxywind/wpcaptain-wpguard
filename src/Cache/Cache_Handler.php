@@ -1,30 +1,39 @@
 <?php
+/**
+ * 缓存处理类
+ *
+ * 提供统一的数据缓存接口。如果服务器安装了 Redis/Memcached 等外部对象缓存，则优先使用；
+ * 否则降级为 WordPress 的 Transients API。
+ *
+ * @package WpGuard
+ * @subpackage Cache
+ */
+
 namespace WpGuard\Cache;
 
 /**
  * Class Cache_Handler
- * Unified interface for caching. Uses object cache if available, else transients.
  */
 class Cache_Handler {
     /**
-     * Whether external object cache is available.
+     * 是否可用外部对象缓存
      *
      * @var bool
      */
     private static $use_object_cache = false;
 
     /**
-     * Init.
+     * 初始化缓存处理器
      */
     public static function init() {
         self::$use_object_cache = wp_using_ext_object_cache();
     }
 
     /**
-     * Get a cache value.
+     * 获取一个缓存值
      *
-     * @param string $key Cache key.
-     * @param mixed  $default Default.
+     * @param string $key     缓存键
+     * @param mixed  $default 如果不存在，返回的默认值
      * @return mixed
      */
     public static function get( $key, $default = false ) {
@@ -37,11 +46,11 @@ class Cache_Handler {
     }
 
     /**
-     * Set a cache value.
+     * 设置一个缓存值
      *
-     * @param string $key    Cache key.
-     * @param mixed  $value  Value.
-     * @param int    $expire Expiration in seconds.
+     * @param string $key    缓存键
+     * @param mixed  $value  缓存值
+     * @param int    $expire 过期时间（秒）
      */
     public static function set( $key, $value, $expire = 3600 ) {
         $key = 'wpguard_' . $key;
@@ -53,12 +62,12 @@ class Cache_Handler {
     }
 
     /**
-     * Increment a numeric cache value.
+     * 自增一个数值缓存项
      *
-     * @param string $key    Cache key.
-     * @param int    $offset Increment amount.
-     * @param int    $expire Expiration for new keys.
-     * @return int|false New value or false on failure.
+     * @param string $key    缓存键
+     * @param int    $offset 增量（默认 1）
+     * @param int    $expire 过期时间（新键时使用）
+     * @return int|false 自增后的值，失败返回 false
      */
     public static function incr( $key, $offset = 1, $expire = 3600 ) {
         $key = 'wpguard_' . $key;
@@ -83,9 +92,9 @@ class Cache_Handler {
     }
 
     /**
-     * Delete a cache key.
+     * 删除一个缓存项
      *
-     * @param string $key Cache key.
+     * @param string $key 缓存键
      */
     public static function delete( $key ) {
         $key = 'wpguard_' . $key;

@@ -1,27 +1,34 @@
 <?php
+/**
+ * 多站点兼容处理
+ *
+ * @package WpGuard
+ * @subpackage Compatibility
+ */
+
 namespace WpGuard\Compatibility;
 
 /**
  * Class Multisite
- * Handles multisite option inheritance and overriding.
+ *
+ * 管理多站点网络激活时的选项继承与覆盖逻辑。
+ * 子站点可以自定义设置，未自定义时自动继承网络默认值。
  */
 class Multisite {
     /**
-     * Flag indicating if we are in a network context.
+     * 网络激活状态缓存
      *
      * @var bool|null
      */
     private static $is_network_active = null;
 
     /**
-     * Init.
+     * 初始化（目前无需额外操作）
      */
-    public static function init() {
-        // Nothing to do now.
-    }
+    public static function init() {}
 
     /**
-     * Check if plugin is network activated.
+     * 检查插件是否在网络中激活
      *
      * @return bool
      */
@@ -38,53 +45,49 @@ class Multisite {
     }
 
     /**
-     * Get option value considering multisite inheritance.
+     * 获取选项值（考虑多站点继承）
      *
-     * @param string $key      Option key without prefix.
-     * @param mixed  $default  Default value.
+     * @param string $key     选项键名（不含前缀）
+     * @param mixed  $default 默认值
      * @return mixed
      */
     public static function get_option( $key, $default = [] ) {
         $option_name = 'wpguard_' . $key;
-
         if ( self::is_network_activated() ) {
-            // In network mode, check if current site has custom value.
+            // 网络模式下，优先使用子站点自定义值
             if ( get_option( $option_name . '_custom' ) ) {
                 $value = get_option( $option_name, null );
                 if ( ! is_null( $value ) ) {
                     return $value;
                 }
             }
-            // Fallback to network default.
+            // 否则返回网络默认值
             return get_site_option( $option_name, $default );
         }
-
-        // Single site or network-activated but not handled? Actually just single.
         return get_option( $option_name, $default );
     }
 
     /**
-     * Update option for the current context.
+     * 更新选项值（自动判断当前上下文）
      *
-     * @param string $key   Option key without prefix.
-     * @param mixed  $value Value.
+     * @param string $key   选项键名（不含前缀）
+     * @param mixed  $value 新值
      */
     public static function update_option( $key, $value ) {
         $option_name = 'wpguard_' . $key;
-
         if ( self::is_network_activated() && is_network_admin() ) {
             update_site_option( $option_name, $value );
         } else {
-            // When saving in a subsite, mark as custom and save.
+            // 子站点保存时标记为“自定义”
             update_option( $option_name . '_custom', 1 );
             update_option( $option_name, $value );
         }
     }
 
     /**
-     * Delete a site-level custom option to restore inheritance.
+     * 删除子站点自定义选项，恢复继承网络默认值
      *
-     * @param string $key Option key without prefix.
+     * @param string $key 选项键名
      */
     public static function delete_option( $key ) {
         $option_name = 'wpguard_' . $key;
@@ -93,23 +96,21 @@ class Multisite {
     }
 
     /**
-     * Set network defaults on plugin network activation.
+     * 设置网络级别的默认选项（插件网络激活时调用）
      */
     public static function set_network_defaults() {
-        // Set basic filter defaults.
         update_site_option( 'wpguard_basic_filter', [
-            'enable_empty_ua'        => 1,
-            'enable_fake_crawler'    => 1,
-            'enable_header_check'    => 1,
-            'enable_referer_check'   => 0,
+            'enable_empty_ua'      => 1,
+            'enable_fake_crawler'  => 1,
+            'enable_header_check'  => 1,
+            'enable_referer_check' => 0,
         ] );
-        // Set path protection defaults.
         update_site_option( 'wpguard_path_protect', [
-            'enable_sensitive_files'  => 1,
-            'enable_backup_files'     => 1,
-            'allowed_download_dirs'   => '',
-            'enable_custom_keywords'  => 0,
-            'custom_keywords'         => '',
+            'enable_sensitive_files' => 1,
+            'enable_backup_files'    => 1,
+            'allowed_download_dirs'  => '',
+            'enable_custom_keywords' => 0,
+            'custom_keywords'        => '',
         ] );
     }
 }

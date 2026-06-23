@@ -1,25 +1,34 @@
 <?php
+/**
+ * 日志处理类
+ *
+ * 负责记录被拦截的请求。日志采用异步批量写入，以降低数据库压力。
+ * 支持自动清理过期日志。
+ *
+ * @package WpGuard
+ * @subpackage Logger
+ */
+
 namespace WpGuard\Logger;
 
 /**
  * Class Log_Handler
- * Handles logging of blocked requests with async storage and cleanup.
  */
 class Log_Handler {
     /**
-     * Table name.
+     * 日志表名（不含前缀）
      *
      * @var string
      */
     private static $table = 'wpguard_logs';
 
     /**
-     * Initialize hooks.
+     * 初始化日志处理器
+     *
+     * 注册 shutdown 钩子用于批量写入日志。
      */
     public static function init() {
-        // Queue for bulk insert, commit on shutdown.
         add_action( 'shutdown', [ __CLASS__, 'commit_queue' ] );
-        // Log queue stored as a global array for this request.
         global $wpguard_log_queue;
         if ( ! is_array( $wpguard_log_queue ) ) {
             $wpguard_log_queue = [];
@@ -27,7 +36,9 @@ class Log_Handler {
     }
 
     /**
-     * Create the log table.
+     * 创建日志数据表
+     *
+     * 使用 dbDelta 确保表结构升级安全。
      */
     public static function create_table() {
         global $wpdb;
@@ -54,9 +65,11 @@ class Log_Handler {
     }
 
     /**
-     * Add a log entry to the queue.
+     * 记录一条拦截日志
      *
-     * @param array $data Log data.
+     * 日志会先暂存在全局队列中，等待 shutdown 时批量写入。
+     *
+     * @param array $data 日志数据（reason, status_code 等）
      */
     public static function log( $data ) {
         global $wpguard_log_queue;
@@ -72,7 +85,9 @@ class Log_Handler {
     }
 
     /**
-     * Commit queued logs to the database.
+     * 将队列中的日志批量写入数据库
+     *
+     * 此方法在 PHP shutdown 阶段自动调用。
      */
     public static function commit_queue() {
         global $wpdb, $wpguard_log_queue;
@@ -102,7 +117,9 @@ class Log_Handler {
     }
 
     /**
-     * Daily cleanup: delete logs older than retention days.
+     * 每日清理过期日志
+     *
+     * 默认保留 30 天，可通过 'wpguard_log_retention_days' 过滤器修改。
      */
     public static function cleanup_logs() {
         global $wpdb;
@@ -115,7 +132,7 @@ class Log_Handler {
     }
 
     /**
-     * Get log count (for admin display).
+     * 获取当前日志总数（用于后台显示）
      *
      * @return int
      */

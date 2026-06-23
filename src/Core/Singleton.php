@@ -1,20 +1,29 @@
 <?php
+/**
+ * 单例 trait
+ *
+ * @package WpGuard
+ * @subpackage Core
+ */
+
 namespace WpGuard\Core;
 
 /**
  * Trait Singleton
- * Makes a class a singleton.
+ *
+ * 使任何使用该 trait 的类成为单例。
+ * 通过静态方法 instance() 获取唯一实例。
  */
 trait Singleton {
     /**
-     * Instance holder.
+     * 单例实例存储
      *
      * @var static|null
      */
     private static $instance = null;
 
     /**
-     * Get the singleton instance.
+     * 获取单例实例
      *
      * @return static
      */

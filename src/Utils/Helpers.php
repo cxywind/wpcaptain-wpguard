@@ -1,16 +1,22 @@
 <?php
+/**
+ * 通用辅助函数
+ *
+ * @package WpGuard
+ * @subpackage Utils
+ */
+
 namespace WpGuard\Utils;
 
 /**
  * Class Helpers
- * Miscellaneous helper methods.
  */
 class Helpers {
     /**
-     * Get plugin option with network inheritance.
+     * 获取插件设置（自动处理多站点继承）
      *
-     * @param string $key     Settings group key.
-     * @param mixed  $default Default.
+     * @param string $key     设置组键名
+     * @param mixed  $default 默认值
      * @return array
      */
     public static function get_settings( $key, $default = [] ) {
@@ -18,20 +24,20 @@ class Helpers {
     }
 
     /**
-     * Update plugin settings.
+     * 更新插件设置
      *
-     * @param string $key   Settings group key.
-     * @param mixed  $value Value.
+     * @param string $key   设置组键名
+     * @param mixed  $value 新值
      */
     public static function update_settings( $key, $value ) {
         \WpGuard\Compatibility\Multisite::update_option( $key, $value );
     }
 
     /**
-     * Get risk level for a feature.
+     * 获取指定功能的风险等级
      *
-     * @param string $feature Feature slug.
-     * @return string 'high', 'medium', 'low', 'none'
+     * @param string $feature 功能标识
+     * @return string 'none', 'low', 'medium', 'high'
      */
     public static function get_risk_level( $feature ) {
         $risks = [

@@ -1,60 +1,89 @@
 <?php
+/**
+ * 路径保护模块
+ *
+ * 拦截对敏感文件、备份文件和包含自定义关键词的 URL 的访问。
+ *
+ * @package WpGuard
+ * @subpackage Protection
+ */
+
 namespace WpGuard\Protection;
 
 /**
- * Class Basic_Filter
- * Filters requests based on UA, headers, and crawler validity.
+ * Class Path_Protect
  */
-class Basic_Filter extends Base_Protection {
+class Path_Protect extends Base_Protection {
     /**
-     * Settings array.
+     * 设置
      *
      * @var array
      */
     private $settings;
 
     /**
-     * Constructor.
+     * 内置敏感文件列表
+     *
+     * @var array
+     */
+    private $sensitive_files = [
+        '.git',
+        '.env',
+        'wp-config.php',
+        'wp-config-sample.php',
+        'phpinfo.php',
+        'readme.html',
+        'license.txt',
+        'debug.log',
+        'error_log',
+        '.DS_Store',
+        'wp-content/debug.log',
+    ];
+
+    /**
+     * 需要拦截的备份/归档文件扩展名
+     *
+     * @var array
+     */
+    private $backup_extensions = [ 'zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'sql', 'bak', 'swp', 'old' ];
+
+    /**
+     * 构造函数
      */
     public function __construct() {
-        $this->settings = \WpGuard\Utils\Helpers::get_settings( 'basic_filter', [
-            'enable_empty_ua'      => 1,
-            'enable_fake_crawler'  => 1,
-            'enable_header_check'  => 1,
-            'enable_referer_check' => 0,
+        $this->settings = \WpGuard\Utils\Helpers::get_settings( 'path_protect', [
+            'enable_sensitive_files' => 1,
+            'enable_backup_files'    => 1,
+            'allowed_download_dirs'  => '',
+            'enable_custom_keywords' => 0,
+            'custom_keywords'        => '',
         ] );
     }
 
     /**
-     * Run checks. Return true to block.
+     * 执行路径保护检查
      *
      * @return bool
      */
     public function check() {
-        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        $ip = \WpGuard\Utils\IP_Utils::get_ip();
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        $parsed_path = parse_url( $request_uri, PHP_URL_PATH );
 
-        // Empty user-agent.
-        if ( $this->settings['enable_empty_ua'] && $this->is_empty_ua( $ua ) ) {
-            $this->block( 'Empty User-Agent' );
+        // 敏感文件
+        if ( $this->settings['enable_sensitive_files'] && $this->is_sensitive_file( $parsed_path ) ) {
+            $this->block( '敏感文件' );
             return true;
         }
 
-        // Fake crawler detection.
-        if ( $this->settings['enable_fake_crawler'] && \WpGuard\Whitelist\Crawler_Whitelist::is_fake_crawler( $ua, $ip ) ) {
-            $this->block( 'Fake Crawler' );
+        // 备份文件
+        if ( $this->settings['enable_backup_files'] && $this->is_backup_file( $parsed_path ) ) {
+            $this->block( '备份文件' );
             return true;
         }
 
-        // Missing common headers.
-        if ( $this->settings['enable_header_check'] && ! $this->has_valid_headers() ) {
-            $this->block( 'Missing Headers' );
-            return true;
-        }
-
-        // Referer check on sensitive pages (wp-login.php, wp-admin).
-        if ( $this->settings['enable_referer_check'] && $this->is_sensitive_page() && $this->has_invalid_referer() ) {
-            $this->block( 'Invalid Referer' );
+        // 自定义关键词
+        if ( $this->settings['enable_custom_keywords'] && $this->has_custom_keywords( $request_uri ) ) {
+            $this->block( '自定义关键词' );
             return true;
         }
 
@@ -62,84 +91,80 @@ class Basic_Filter extends Base_Protection {
     }
 
     /**
-     * Check if UA is empty or too short.
+     * 判断路径是否指向敏感文件
      *
-     * @param string $ua User agent.
+     * @param string $path URL 路径部分
      * @return bool
      */
-    private function is_empty_ua( $ua ) {
-        return strlen( trim( $ua ) ) < 3;
-    }
-
-    /**
-     * Check if crawler is legitimate (delegates to Crawler_Whitelist).
-     *
-     * @param string $ua User agent.
-     * @param string $ip IP.
-     * @return bool True if fake.
-     */
-    public static function is_fake_crawler( $ua, $ip ) {
-        // Check common crawler patterns.
-        $crawlers = [ 'googlebot', 'bingbot', 'yandexbot', 'baiduspider', 'duckduckbot' ];
-        foreach ( $crawlers as $crawler ) {
-            if ( stripos( $ua, $crawler ) !== false ) {
-                return ! \WpGuard\Whitelist\Crawler_Whitelist::is_legitimate_crawler( $ua, $ip );
+    private function is_sensitive_file( $path ) {
+        $path = trim( $path, '/' );
+        foreach ( $this->sensitive_files as $file ) {
+            if ( $path === $file || false !== strpos( $path, '/' . $file ) ) {
+                return true;
             }
         }
         return false;
     }
 
     /**
-     * Check for presence of standard browser headers.
+     * 判断路径是否为备份文件且不在允许目录中
      *
+     * @param string $path URL 路径部分
      * @return bool
      */
-    private function has_valid_headers() {
-        $required = [ 'HTTP_ACCEPT', 'HTTP_ACCEPT_LANGUAGE', 'HTTP_ACCEPT_ENCODING' ];
-        foreach ( $required as $header ) {
-            if ( empty( $_SERVER[ $header ] ) ) {
-                return false;
+    private function is_backup_file( $path ) {
+        $ext = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
+        if ( ! in_array( $ext, $this->backup_extensions, true ) ) {
+            return false;
+        }
+
+        // 如果配置了允许目录，则检查当前路径是否在允许范围内
+        $allowed_dirs = $this->settings['allowed_download_dirs'];
+        if ( ! empty( $allowed_dirs ) ) {
+            $allowed = array_map( 'trim', explode( "\n", $allowed_dirs ) );
+            foreach ( $allowed as $dir ) {
+                $dir = trim( $dir, '/' );
+                if ( 0 === strpos( trim( $path, '/' ), $dir ) ) {
+                    return false; // 在允许目录内，放行
+                }
             }
         }
+
         return true;
     }
 
     /**
-     * Check if current page is sensitive (wp-login, admin).
+     * 检查请求 URI 是否包含自定义关键词
      *
+     * @param string $uri 完整请求 URI
      * @return bool
      */
-    private function is_sensitive_page() {
-        $uri = $_SERVER['REQUEST_URI'] ?? '';
-        return (bool) preg_match( '#/wp-(login|admin)#i', $uri );
-    }
-
-    /**
-     * Check if referer is invalid.
-     *
-     * @return bool True if invalid.
-     */
-    private function has_invalid_referer() {
-        $referer = $_SERVER['HTTP_REFERER'] ?? '';
-        if ( empty( $referer ) ) {
-            return true;
+    private function has_custom_keywords( $uri ) {
+        $keywords = $this->settings['custom_keywords'];
+        if ( empty( $keywords ) ) {
+            return false;
         }
-        $site_url = site_url();
-        return 0 !== strpos( $referer, $site_url );
+        $lines = array_filter( array_map( 'trim', explode( "\n", $keywords ) ) );
+        foreach ( $lines as $word ) {
+            if ( false !== stripos( $uri, $word ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
-     * Block request, log, and exit.
+     * 拦截请求，记录日志并返回 404
      *
-     * @param string $reason Reason for block.
-     * @param int    $code   HTTP status code.
+     * @param string $reason 原因
+     * @param int    $code   HTTP 状态码
      */
-    private function block( $reason, $code = 403 ) {
+    private function block( $reason, $code = 404 ) {
         \WpGuard\Logger\Log_Handler::log( [
             'reason'      => $reason,
             'status_code' => $code,
         ] );
         status_header( $code );
-        die( 'Access denied.' );
+        die( 'Not found.' );
     }
 }

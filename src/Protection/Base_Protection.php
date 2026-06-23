@@ -1,46 +1,23 @@
 <?php
+/**
+ * 防护模块抽象基类
+ *
+ * @package WpGuard
+ * @subpackage Protection
+ */
+
 namespace WpGuard\Protection;
 
 /**
- * Class Protection_Engine
- * Orchestrates all protection modules.
+ * Class Base_Protection
+ *
+ * 所有具体防护类必须继承此类并实现 check() 方法。
  */
-class Protection_Engine {
+abstract class Base_Protection {
     /**
-     * Array of protection module instances.
+     * 执行防护检查
      *
-     * @var Base_Protection[]
+     * @return bool 返回 true 表示需要拦截该请求
      */
-    private static $modules = [];
-
-    /**
-     * Initialize.
-     */
-    public static function init() {
-        // Register modules.
-        self::$modules[] = new Basic_Filter();
-        self::$modules[] = new Path_Protect();
-        // Hook early to intercept requests.
-        add_action( 'plugins_loaded', [ __CLASS__, 'run_checks' ], 0 );
-    }
-
-    /**
-     * Execute all protection checks.
-     */
-    public static function run_checks() {
-        // Skip if in admin (allow backend access).
-        if ( is_admin() ) {
-            return;
-        }
-        // Skip cron and CLI.
-        if ( defined( 'DOING_CRON' ) || defined( 'WP_CLI' ) ) {
-            return;
-        }
-        foreach ( self::$modules as $module ) {
-            if ( $module->check() ) {
-                // Already blocked and died.
-                exit;
-            }
-        }
-    }
+    abstract public function check();
 }

@@ -1,20 +1,28 @@
 <?php
+/**
+ * 搜索引擎爬虫白名单验证
+ *
+ * 通过 IP 范围匹配和反向 DNS 验证，判断声称是爬虫的请求是否真实。
+ *
+ * @package WpGuard
+ * @subpackage Whitelist
+ */
+
 namespace WpGuard\Whitelist;
 
 /**
  * Class Crawler_Whitelist
- * Validates whether a user-agent claiming to be a search engine is authentic.
  */
 class Crawler_Whitelist {
     /**
-     * Known crawler IP ranges (loaded from file).
+     * 已知爬虫的 IP 范围（从配置文件加载）
      *
      * @var array
      */
     private static $ip_ranges = [];
 
     /**
-     * Crawler user-agent signatures.
+     * 爬虫 UA 特征匹配模式
      *
      * @var array
      */
@@ -25,7 +33,7 @@ class Crawler_Whitelist {
     ];
 
     /**
-     * Initialize static data.
+     * 初始化爬虫 IP 数据
      */
     public static function init() {
         if ( empty( self::$ip_ranges ) ) {
@@ -37,16 +45,14 @@ class Crawler_Whitelist {
     }
 
     /**
-     * Verify if given UA/IP belong to a real search crawler.
+     * 验证给定的 UA 和 IP 是否属于合法的搜索引擎爬虫
      *
-     * @param string $ua User agent string.
-     * @param string $ip IP address.
-     * @return bool True if verified as a legitimate crawler.
+     * @param string $ua 用户代理字符串
+     * @param string $ip 客户端 IP
+     * @return bool 合法返回 true
      */
     public static function is_legitimate_crawler( $ua, $ip ) {
         self::init();
-
-        // Check if UA matches any crawler.
         $crawler = null;
         foreach ( self::$ua_patterns as $name => $pattern ) {
             if ( preg_match( $pattern, $ua ) ) {
@@ -57,20 +63,18 @@ class Crawler_Whitelist {
         if ( ! $crawler ) {
             return false;
         }
-
-        // Verify IP against known ranges or reverse DNS.
         return self::verify_ip( $ip, $crawler );
     }
 
     /**
-     * Verify IP belongs to crawler.
+     * 验证 IP 是否属于指定爬虫
      *
-     * @param string $ip      IP.
-     * @param string $crawler Crawler identifier.
+     * @param string $ip      IP 地址
+     * @param string $crawler 爬虫标识
      * @return bool
      */
     private static function verify_ip( $ip, $crawler ) {
-        // Check static IP ranges first.
+        // 先尝试静态 IP 范围匹配
         if ( isset( self::$ip_ranges[ $crawler ] ) ) {
             foreach ( self::$ip_ranges[ $crawler ] as $cidr ) {
                 if ( \WpGuard\Utils\IP_Utils::ip_in_range( $ip, $cidr ) ) {
@@ -79,24 +83,23 @@ class Crawler_Whitelist {
             }
         }
 
-        // Reverse DNS verification for Googlebot (fallback).
+        // Googlebot 可以额外使用反向 DNS 验证
         if ( 'googlebot' === $crawler ) {
             return self::reverse_dns_verify( $ip );
         }
 
-        // If not in static list and no DNS method, assume false.
         return false;
     }
 
     /**
-     * Verify Googlebot via reverse DNS.
+     * 通过反向 DNS 和正向解析验证 Googlebot
      *
-     * @param string $ip IP.
+     * @param string $ip IP 地址
      * @return bool
      */
     private static function reverse_dns_verify( $ip ) {
         $hostname = gethostbyaddr( $ip );
-        if ( ! $hostname || false === stripos( $hostname, '.googlebot.com' ) && false === stripos( $hostname, '.google.com' ) ) {
+        if ( ! $hostname || ( false === stripos( $hostname, '.googlebot.com' ) && false === stripos( $hostname, '.google.com' ) ) ) {
             return false;
         }
         $forward_ip = gethostbyname( $hostname );

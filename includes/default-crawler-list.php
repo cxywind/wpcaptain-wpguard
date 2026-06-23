@@ -1,8 +1,9 @@
 <?php
 /**
- * Default crawler IP ranges (CIDR notation).
+ * 默认搜索引擎爬虫 IP 范围（CIDR 表示）
  *
- * @source Official documentation of each search engine.
+ * 数据来源为各搜索引擎官方文档。
+ * 仅供 Crawler_Whitelist 使用。
  */
 return [
     'googlebot' => [

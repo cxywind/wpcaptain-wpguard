@@ -1,46 +1,54 @@
 <?php
+/**
+ * 后台设置选项卡基类
+ *
+ * @package WpGuard
+ * @subpackage Admin
+ */
+
 namespace WpGuard\Admin;
 
 /**
  * Abstract class Tab_Base
- * Base for admin settings tabs.
+ *
+ * 所有具体选项卡都必须继承此类，并实现 render() 方法。
  */
 abstract class Tab_Base {
     /**
-     * Tab slug.
+     * 选项卡标识（用于 URL 参数）
      *
      * @var string
      */
     protected $slug;
 
     /**
-     * Tab title.
+     * 选项卡标题
      *
      * @var string
      */
     protected $title;
 
     /**
-     * Option group key.
+     * 对应的设置选项键名（不含前缀）
      *
      * @var string
      */
     protected $option_key;
 
     /**
-     * Default settings.
+     * 默认设置值
      *
      * @var array
      */
     protected $defaults = [];
 
     /**
-     * Render the tab content.
+     * 渲染选项卡内容
      */
     abstract public function render();
 
     /**
-     * Get current settings.
+     * 获取当前设置值（考虑多站点继承）
      *
      * @return array
      */
@@ -49,9 +57,9 @@ abstract class Tab_Base {
     }
 
     /**
-     * Save settings.
+     * 保存设置
      *
-     * @param array $input Submitted data.
+     * @param array $input 用户提交的数据
      */
     public function save( $input ) {
         $sanitized = $this->sanitize( $input );
@@ -59,9 +67,11 @@ abstract class Tab_Base {
     }
 
     /**
-     * Sanitize settings data. Override in child classes.
+     * 数据消毒处理
      *
-     * @param array $input Raw input.
+     * 子类可以重写此方法以实现特定字段的消毒逻辑。
+     *
+     * @param array $input 原始输入
      * @return array
      */
     protected function sanitize( $input ) {
@@ -69,7 +79,7 @@ abstract class Tab_Base {
     }
 
     /**
-     * Get tab slug.
+     * 获取选项卡 slug
      *
      * @return string
      */
@@ -78,7 +88,7 @@ abstract class Tab_Base {
     }
 
     /**
-     * Get tab title.
+     * 获取选项卡标题
      *
      * @return string
      */
