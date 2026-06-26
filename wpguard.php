@@ -8,7 +8,7 @@
  * Plugin Name: WpGuard - 智能防护系统
  * Plugin URI:  https://www.wpcaptain.cn/
  * Description: 通过智能过滤、行为分析和 SEO 安全默认值保护 WordPress 免受 CC/DDoS 攻击。
- * Version:     1.1.0
+ * Version:     1.1.1
  * Author:      大禹
  * Author URI:  https://www.web-sun.cn
  * License:     GPL-2.0+

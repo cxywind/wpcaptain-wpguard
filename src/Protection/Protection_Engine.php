@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * 防护引擎调度中心
  *
@@ -37,6 +37,21 @@ class Protection_Engine {
     }
 
     /**
+     * 统一豁免函数：判断当前请求是否来自已登录的 WordPress 用户
+     *
+     * 已登录用户将跳过所有防护检查，避免误拦网站管理员的正常操作。
+     * 此功能默认开启，无需后台设置。
+     *
+     * @return bool true=已登录用户，应豁免
+     */
+    public static function is_logged_in_user() {
+        if ( is_user_logged_in() ) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 依次运行所有防护检查
      *
      * 各模块自行判断是否跳过后台、WP-CLI 和 cron 请求。
@@ -44,6 +59,11 @@ class Protection_Engine {
     public static function run_checks() {
         // 命令行或计划任务直接跳过（所有模块都无需处理）
         if ( defined( 'WP_CLI' ) || defined( 'DOING_CRON' ) ) {
+            return;
+        }
+
+        // 已登录的 WordPress 用户跳过所有防护检查（默认开启，无需后台设置）
+        if ( self::is_logged_in_user() ) {
             return;
         }
 
