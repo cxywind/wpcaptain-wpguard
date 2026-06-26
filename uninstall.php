@@ -14,9 +14,13 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-// 删除日志表
-$table_name = $wpdb->prefix . 'wpguard_logs';
-$wpdb->query( "DROP TABLE IF EXISTS $table_name" );
+// 删除日志表（表名白名单校验后使用 esc_sql）
+$raw_table = $wpdb->prefix . 'wpguard_logs';
+$allowed_tables = [ $wpdb->prefix . 'wpguard_logs' ];
+$table_name = in_array( $raw_table, $allowed_tables, true ) ? $raw_table : '';
+if ( ! empty( $table_name ) ) {
+    $wpdb->query( 'DROP TABLE IF EXISTS ' . esc_sql( $table_name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+}
 
 // 删除所有选项（单站点和多站点）
 $option_keys = [ 'basic_filter', 'path_protect', 'whitelist_logs', 'fingerprint' ];
