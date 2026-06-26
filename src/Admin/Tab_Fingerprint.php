@@ -23,17 +23,22 @@ class Tab_Fingerprint extends Tab_Base {
         $this->defaults   = [
             'enabled'       => 0,
             'block_level'   => 'strict',
-            'custom_groups' => [ 'ua', 'path' ],
+            'custom_groups' => [ 'ua', 'path', 'header' ],
             'features'      => [
                 'c2' => 1,
                 'c3' => 0,
                 'p1' => 0,
                 'p2' => 0,
+                'h1' => 0,
+                'h2' => 0,
+                'h3' => 0,
+                'h4' => 0,
                 'r1' => 0,
                 'r2' => 0,
                 'r3' => 0,
                 'r4' => 0,
-                'b1' => 1,
+                'b1' => 0,
+                'b2' => 0,
             ],
             'rate_limits'   => [
                 'r1' => 300,
@@ -45,6 +50,7 @@ class Tab_Fingerprint extends Tab_Base {
             'http_code'     => 403,
             'whitelist_ips' => '',
             'log_only'      => 0,
+            'enable_cache'  => 0,
         ];
     }
 
@@ -116,7 +122,8 @@ class Tab_Fingerprint extends Tab_Base {
                         <p>
                             <label><input type="checkbox" name="settings[custom_groups][]" value="ua" <?php echo in_array( 'ua', (array) $settings['custom_groups'], true ) ? 'checked' : ''; ?>> <?php esc_html_e( 'UA 特征组 (C2, C3)', 'wpguard' ); ?></label><br>
                             <label><input type="checkbox" name="settings[custom_groups][]" value="path" <?php echo in_array( 'path', (array) $settings['custom_groups'], true ) ? 'checked' : ''; ?>> <?php esc_html_e( '路径特征组 (P1, P2)', 'wpguard' ); ?></label><br>
-                            <label><input type="checkbox" name="settings[custom_groups][]" value="crawler" <?php echo in_array( 'crawler', (array) $settings['custom_groups'], true ) ? 'checked' : ''; ?>> <?php esc_html_e( '爬虫特征组 (B1)', 'wpguard' ); ?></label><br>
+                            <label><input type="checkbox" name="settings[custom_groups][]" value="crawler" <?php echo in_array( 'crawler', (array) $settings['custom_groups'], true ) ? 'checked' : ''; ?>> <?php esc_html_e( '爬虫特征组 (B1, B2)', 'wpguard' ); ?></label><br>
+                            <label><input type="checkbox" name="settings[custom_groups][]" value="header" <?php echo in_array( 'header', (array) $settings['custom_groups'], true ) ? 'checked' : ''; ?>> <?php esc_html_e( '请求头特征组 (H1-H4)', 'wpguard' ); ?></label><br>
                             <label><input type="checkbox" name="settings[custom_groups][]" value="rate" <?php echo in_array( 'rate', (array) $settings['custom_groups'], true ) ? 'checked' : ''; ?>> <?php esc_html_e( '频率特征组 (R1-R4)', 'wpguard' ); ?></label>
                         </p>
                     </td>
@@ -148,12 +155,34 @@ class Tab_Fingerprint extends Tab_Base {
                     </td>
                 </tr>
 
+                <!-- 请求头特征 -->
+                <tr>
+                    <th scope="row"><?php esc_html_e( '请求头特征', 'wpguard' ); ?></th>
+                    <td>
+                        <label><input type="checkbox" name="settings[features][h1]" value="1" <?php checked( 1, $settings['features']['h1'] ); ?>> <?php esc_html_e( 'H1 - 缺少 Accept 请求头', 'wpguard' ); ?></label><br>
+                        <label><input type="checkbox" name="settings[features][h2]" value="1" <?php checked( 1, $settings['features']['h2'] ); ?>> <?php esc_html_e( 'H2 - 缺少 Accept-Language 请求头', 'wpguard' ); ?></label><br>
+                        <label><input type="checkbox" name="settings[features][h3]" value="1" <?php checked( 1, $settings['features']['h3'] ); ?>> <?php esc_html_e( 'H3 - 缺少 Accept-Encoding 请求头', 'wpguard' ); ?></label><br>
+                        <label><input type="checkbox" name="settings[features][h4]" value="1" <?php checked( 1, $settings['features']['h4'] ); ?>> <?php esc_html_e( 'H4 - 敏感页面无本站 Referer（wp-login/wp-admin）', 'wpguard' ); ?></label>
+                        <p class="description"><?php esc_html_e( '头部特征风险较低，建议与其他特征组合使用，避免误拦正常浏览器。', 'wpguard' ); ?></p>
+                    </td>
+                </tr>
+
                 <!-- 爬虫特征 -->
                 <tr>
                     <th scope="row"><?php esc_html_e( '爬虫特征', 'wpguard' ); ?></th>
                     <td>
-                        <label><input type="checkbox" name="settings[features][b1]" value="1" <?php checked( 1, $settings['features']['b1'] ); ?>> <?php esc_html_e( 'B1 - 伪造 Googlebot（反向DNS+正向DNS双重验证，结果缓存24小时）', 'wpguard' ); ?></label>
-                        <p class="description"><?php esc_html_e( '仅对声称是 Googlebot 的请求进行验证。其他爬虫（Bing/Yandex 等）直接放行。', 'wpguard' ); ?></p>
+                        <label><input type="checkbox" name="settings[features][b1]" value="1" <?php checked( 1, $settings['features']['b1'] ); ?>> <?php esc_html_e( 'B1 - 伪造 Bingbot（反向DNS+正向DNS双重验证）', 'wpguard' ); ?></label><br>
+                        <label><input type="checkbox" name="settings[features][b2]" value="1" <?php checked( 1, $settings['features']['b2'] ); ?>> <?php esc_html_e( 'B2 - 伪造 YandexBot（反向DNS+正向DNS双重验证）', 'wpguard' ); ?></label>
+                        <p class="description"><?php esc_html_e( '爬虫验证风险较低，建议与其他特征组合使用。Googlebot 验证在「基础过滤」中配置。', 'wpguard' ); ?></p>
+                    </td>
+                </tr>
+
+                <!-- 爬虫验证缓存 -->
+                <tr>
+                    <th scope="row"><?php esc_html_e( '爬虫验证缓存', 'wpguard' ); ?> <span class="risk-medium"><?php esc_html_e( '中风险', 'wpguard' ); ?></span></th>
+                    <td>
+                        <label><input type="checkbox" name="settings[enable_cache]" value="1" <?php checked( 1, $settings['enable_cache'] ); ?>> <?php esc_html_e( '启用爬虫验证结果缓存（24小时）。', 'wpguard' ); ?></label>
+                        <p class="description" style="color: #d63638;"><?php esc_html_e( '⚠️ 启用缓存后，已验证的爬虫 IP 结果将保存 24 小时。如果该 IP 在此期间被重新分配给恶意请求者，可能造成漏拦。建议仅在网站日均访问量超过 10,000 时开启。', 'wpguard' ); ?></p>
                     </td>
                 </tr>
 
@@ -259,6 +288,7 @@ class Tab_Fingerprint extends Tab_Base {
             : 403;
         $sanitized['block_action']  = ! empty( $input['block_action'] ) ? sanitize_key( $input['block_action'] ) : 'error';
         $sanitized['whitelist_ips'] = sanitize_textarea_field( $input['whitelist_ips'] ?? '' );
+        $sanitized['enable_cache']  = ! empty( $input['enable_cache'] ) ? 1 : 0;
 
         // 特征开关
         $features_defaults = $this->defaults['features'];

@@ -39,15 +39,19 @@ class Helpers {
      * @param string $feature 功能标识
      * @return string 'none', 'low', 'medium', 'high'
      */
-    public static function get_risk_level( $feature ) {
+        public static function get_risk_level( $feature ) {
         $risks = [
             'empty_ua'          => 'low',
-            'fake_crawler'      => 'none',
-            'header_check'      => 'low',
-            'referer_check'     => 'low',
+            'googlebot_check'   => 'none',
             'sensitive_files'   => 'none',
             'backup_files'      => 'none',
             'custom_keywords'   => 'low',
+            'h1'                => 'low',
+            'h2'                => 'low',
+            'h3'                => 'low',
+            'h4'                => 'low',
+            'b1'                => 'low',
+            'b2'                => 'low',
         ];
         return isset( $risks[ $feature ] ) ? $risks[ $feature ] : 'low';
     }

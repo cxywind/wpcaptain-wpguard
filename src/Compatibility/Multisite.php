@@ -106,11 +106,10 @@ class Multisite {
      * 设置网络级别的默认选项（插件网络激活时调用）
      */
     public static function set_network_defaults() {
-        update_site_option( 'wpguard_basic_filter', [
-            'enable_empty_ua'      => 1,
-            'enable_fake_crawler'  => 1,
-            'enable_header_check'  => 1,
-            'enable_referer_check' => 0,
+                update_site_option( 'wpguard_basic_filter', [
+            'enable_empty_ua'       => 1,
+            'enable_googlebot_check' => 0,
+            'enable_cache'          => 0,
         ] );
         update_site_option( 'wpguard_path_protect', [
             'enable_sensitive_files' => 1,

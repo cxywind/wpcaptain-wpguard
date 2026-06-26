@@ -14,7 +14,6 @@
 
 namespace WpGuard\Protection;
 
-use WpGuard\Utils\Googlebot_Verifier;
 use WpGuard\Cache\Cache_Handler;
 use WpGuard\Utils\IP_Utils;
 use WpGuard\Logger\Log_Handler;
@@ -59,17 +58,22 @@ class Fingerprint_Detection extends Base_Protection {
         $this->settings = \WpGuard\Utils\Helpers::get_settings( 'fingerprint', [
             'enabled'       => 0,
             'block_level'   => 'strict',
-            'custom_groups' => [ 'ua', 'path' ],
+            'custom_groups' => [ 'ua', 'path', 'header' ],
             'features'      => [
                 'c2' => 1,
                 'c3' => 0,
                 'p1' => 0,
                 'p2' => 0,
+                'h1' => 0,
+                'h2' => 0,
+                'h3' => 0,
+                'h4' => 0,
                 'r1' => 0,
                 'r2' => 0,
                 'r3' => 0,
                 'r4' => 0,
-                'b1' => 1,
+                'b1' => 0,
+                'b2' => 0,
             ],
             'rate_limits'   => [
                 'r1' => 300,
@@ -81,11 +85,15 @@ class Fingerprint_Detection extends Base_Protection {
             'http_code'     => 403,
             'whitelist_ips' => '',
             'log_only'      => 0,
+            'enable_cache'  => 0,
         ] );
     }
 
     /**
      * 执行指纹检测
+     *
+     * 检测顺序：零IO内存特征 → 轻度IO缓存特征 → DNS验证特征 → 需外部缓存特征。
+     * 每项特征检测后立即判断封禁条件，达标即阻断，实现短路优化。
      *
      * @return bool
      */
@@ -108,7 +116,7 @@ class Fingerprint_Detection extends Base_Protection {
         }
 
         $this->check_start = microtime( true );
-        $this->hit_groups  = [];
+        $this->hit_groups   = [];
         $this->hit_features = [];
 
         // 检测是否启用外部对象缓存（R系列依赖）
@@ -162,20 +170,79 @@ class Fingerprint_Detection extends Base_Protection {
             }
         }
 
-        // 5. B1 - 伪造 Googlebot
-        if ( ! empty( $this->settings['features']['b1'] ) ) {
-            if ( $this->check_b1( $ip ) ) {
-                $this->mark_hit( 'b1', 'crawler' );
+        // ─── 阶段3：请求头特征（内存操作） ───
+
+        // 5. H1 - 缺少 Accept 头
+        if ( ! empty( $this->settings['features']['h1'] ) ) {
+            if ( $this->check_h1() ) {
+                $this->mark_hit( 'h1', 'header' );
                 if ( $this->should_block() ) {
-                    $this->block( 'B1-伪造Googlebot' );
+                    $this->block( 'H1-缺少Accept头' );
                     return true;
                 }
             }
         }
 
-        // ─── 阶段3：需外部缓存特征 ───
+        // 6. H2 - 缺少 Accept-Language 头
+        if ( ! empty( $this->settings['features']['h2'] ) ) {
+            if ( $this->check_h2() ) {
+                $this->mark_hit( 'h2', 'header' );
+                if ( $this->should_block() ) {
+                    $this->block( 'H2-缺少Accept-Language头' );
+                    return true;
+                }
+            }
+        }
+
+        // 7. H3 - 缺少 Accept-Encoding 头
+        if ( ! empty( $this->settings['features']['h3'] ) ) {
+            if ( $this->check_h3() ) {
+                $this->mark_hit( 'h3', 'header' );
+                if ( $this->should_block() ) {
+                    $this->block( 'H3-缺少Accept-Encoding头' );
+                    return true;
+                }
+            }
+        }
+
+        // 8. H4 - 敏感页面无本站 Referer
+        if ( ! empty( $this->settings['features']['h4'] ) ) {
+            if ( $this->check_h4() ) {
+                $this->mark_hit( 'h4', 'header' );
+                if ( $this->should_block() ) {
+                    $this->block( 'H4-敏感页面无Referer' );
+                    return true;
+                }
+            }
+        }
+
+        // ─── 阶段4：DNS验证特征（轻度IO + 可选缓存） ───
+
+        // 9. B1 - 伪造 Bingbot
+        if ( ! empty( $this->settings['features']['b1'] ) ) {
+            if ( $this->check_b1( $ip ) ) {
+                $this->mark_hit( 'b1', 'crawler' );
+                if ( $this->should_block() ) {
+                    $this->block( 'B1-伪造Bingbot' );
+                    return true;
+                }
+            }
+        }
+
+        // 10. B2 - 伪造 YandexBot
+        if ( ! empty( $this->settings['features']['b2'] ) ) {
+            if ( $this->check_b2( $ip ) ) {
+                $this->mark_hit( 'b2', 'crawler' );
+                if ( $this->should_block() ) {
+                    $this->block( 'B2-伪造YandexBot' );
+                    return true;
+                }
+            }
+        }
+
+        // ─── 阶段5：需外部缓存特征 ───
         if ( $has_object_cache ) {
-            // 6-9. R1-R4 频率特征
+            // 11-14. R1-R4 频率特征
             $this->check_rate_features( $ip );
         }
 
@@ -352,21 +419,144 @@ class Fingerprint_Detection extends Base_Protection {
     }
 
     /**
-     * B1 - 伪造 Googlebot 检测
+     * H1 - 缺少 Accept 请求头检测
+     *
+     * @return bool true=缺少头
+     */
+    private function check_h1() {
+        return empty( $_SERVER['HTTP_ACCEPT'] );
+    }
+
+    /**
+     * H2 - 缺少 Accept-Language 请求头检测
+     *
+     * @return bool true=缺少头
+     */
+    private function check_h2() {
+        return empty( $_SERVER['HTTP_ACCEPT_LANGUAGE'] );
+    }
+
+    /**
+     * H3 - 缺少 Accept-Encoding 请求头检测
+     *
+     * @return bool true=缺少头
+     */
+    private function check_h3() {
+        return empty( $_SERVER['HTTP_ACCEPT_ENCODING'] );
+    }
+
+    /**
+     * H4 - 敏感页面无本站 Referer 检测
+     *
+     * 仅对 wp-login.php 和 wp-admin 路径检测。
+     *
+     * @return bool true=Referer 非法
+     */
+    private function check_h4() {
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+
+        // 仅在敏感路径下检测
+        if ( ! preg_match( '#/wp-(login|admin)#i', $uri ) ) {
+            return false;
+        }
+
+        $referer = $_SERVER['HTTP_REFERER'] ?? '';
+        if ( empty( $referer ) ) {
+            return true;
+        }
+
+        $site_url = site_url();
+        return 0 !== strpos( $referer, $site_url );
+    }
+
+    /**
+     * B1 - 伪造 Bingbot 检测
+     *
+     * 通过反向 DNS + 正向 DNS 双重验证。
+     * 仅验证 UA 中包含 "bingbot" 或 "BingPreview" 的请求。
      *
      * @param string $ip
-     * @return bool true 表示伪造 Googlebot
+     * @return bool true=伪造 Bingbot
      */
     private function check_b1( $ip ) {
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-        // 不是 Googlebot 则不触发
-        if ( stripos( $ua, 'Googlebot' ) === false ) {
+        if ( stripos( $ua, 'bingbot' ) === false && stripos( $ua, 'BingPreview' ) === false ) {
             return false;
         }
 
-        // 验证失败即为伪造
-        return ! Googlebot_Verifier::is_googlebot( $ip, $ua );
+        $use_cache = ! empty( $this->settings['enable_cache'] );
+        return ! self::verify_crawler_by_dns( $ip, [ 'search.msn.com' ], 'bg_', $use_cache );
+    }
+
+    /**
+     * B2 - 伪造 YandexBot 检测
+     *
+     * 通过反向 DNS + 正向 DNS 双重验证。
+     * 仅验证 UA 中包含 "YandexBot" 或 "YandexMobileBot" 的请求。
+     *
+     * @param string $ip
+     * @return bool true=伪造 YandexBot
+     */
+    private function check_b2( $ip ) {
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+        if ( stripos( $ua, 'YandexBot' ) === false && stripos( $ua, 'YandexMobileBot' ) === false ) {
+            return false;
+        }
+
+        $use_cache = ! empty( $this->settings['enable_cache'] );
+        return ! self::verify_crawler_by_dns( $ip, [ 'yandex.ru', 'yandex.net', 'yandex.com' ], 'yx_', $use_cache );
+    }
+
+    /**
+     * 通用爬虫 DNS 验证
+     *
+     * 执行反向 DNS → 检查 PTR 后缀 → 正向 DNS 验证，三步验证爬虫真实性。
+     *
+     * @param string $ip         待验证的 IP
+     * @param array  $suffixes   期望的 PTR 后缀列表（如 ['googlebot.com', 'google.com']）
+     * @param string $cache_prefix 缓存 key 前缀
+     * @param bool   $use_cache  是否启用缓存
+     * @return bool true=真实爬虫, false=假冒
+     */
+    private static function verify_crawler_by_dns( $ip, array $suffixes, $cache_prefix = 'cr_', $use_cache = false ) {
+        if ( $use_cache ) {
+            $cache_key = $cache_prefix . $ip;
+            $cached    = Cache_Handler::get( $cache_key );
+            if ( false !== $cached ) {
+                return (bool) $cached;
+            }
+        }
+
+        // 反向 DNS：获取 PTR 记录
+        $hostname = @gethostbyaddr( $ip );
+        if ( ! $hostname || $hostname === $ip ) {
+            $result = false;
+        } else {
+            $hostname_lower = strtolower( $hostname );
+            $suffix_matched = false;
+            foreach ( $suffixes as $suffix ) {
+                if ( substr_compare( $hostname_lower, '.' . $suffix, -strlen( '.' . $suffix ) ) === 0 ) {
+                    $suffix_matched = true;
+                    break;
+                }
+            }
+
+            if ( ! $suffix_matched ) {
+                $result = false;
+            } else {
+                // 正向 DNS：解析 PTR 记录对应的 IP
+                $resolved_ip = @gethostbyname( $hostname );
+                $result      = ( $resolved_ip && $resolved_ip !== $hostname && $resolved_ip === $ip );
+            }
+        }
+
+        if ( $use_cache ) {
+            Cache_Handler::set( $cache_key, $result ? 1 : 0, DAY_IN_SECONDS );
+        }
+
+        return $result;
     }
 
     /**

@@ -75,21 +75,23 @@ class Bootstrap {
             \WpGuard\Logger\Log_Handler::create_table();
 
             // 设置默认的指纹检测选项
-            $fingerprint_defaults = [
+                        $fingerprint_defaults = [
                 'enabled'       => 0,
                 'block_level'   => 'strict',
-                'custom_groups' => [ 'ua', 'path' ],
+                'custom_groups' => [ 'ua', 'path', 'header' ],
                 'features'      => [
                     'c2' => 1, 'c3' => 0,
                     'p1' => 0, 'p2' => 0,
+                    'h1' => 0, 'h2' => 0, 'h3' => 0, 'h4' => 0,
                     'r1' => 0, 'r2' => 0, 'r3' => 0, 'r4' => 0,
-                    'b1' => 1,
+                    'b1' => 0, 'b2' => 0,
                 ],
                 'rate_limits'   => [ 'r1' => 300, 'r2' => 30, 'r3' => 50, 'r4' => 20 ],
                 'block_action'  => 'error',
                 'http_code'     => 403,
                 'whitelist_ips' => '',
                 'log_only'      => 0,
+                'enable_cache'  => 0,
             ];
             add_option( 'wpguard_fingerprint', $fingerprint_defaults );
         }

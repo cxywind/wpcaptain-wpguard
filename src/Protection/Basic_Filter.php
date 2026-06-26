@@ -26,10 +26,9 @@ class Basic_Filter extends Base_Protection {
      */
         public function __construct() {
         $this->settings = \WpGuard\Utils\Helpers::get_settings( 'basic_filter', [
-            'enable_empty_ua'      => 1,
-            'enable_fake_crawler'  => 0,  // 默认关闭，爬虫验证移至 Fingerprint_Detection
-            'enable_header_check'  => 1,
-            'enable_referer_check' => 0,
+            'enable_empty_ua'       => 1,
+            'enable_googlebot_check' => 0,
+            'enable_cache'          => 0,
         ] );
     }
 
@@ -52,15 +51,9 @@ class Basic_Filter extends Base_Protection {
             return true;
         }
 
-        // 2. 缺失标准头检测
-        if ( $this->settings['enable_header_check'] && ! $this->has_valid_headers() ) {
-            $this->block( '缺失请求头' );
-            return true;
-        }
-
-        // 3. Referer 检测（仅敏感页面）
-        if ( $this->settings['enable_referer_check'] && $this->is_sensitive_page() && $this->has_invalid_referer() ) {
-            $this->block( '非法 Referer' );
+        // 2. Googlebot 真实性验证
+        if ( $this->settings['enable_googlebot_check'] && $this->is_fake_googlebot() ) {
+            $this->block( '伪造 Googlebot' );
             return true;
         }
 
@@ -78,42 +71,26 @@ class Basic_Filter extends Base_Protection {
     }
 
     /**
-     * 检查是否包含标准浏览器请求头
+     * 检测是否为伪造 Googlebot
      *
-     * @return bool
+     * 通过反向 DNS + 正向 DNS 双重验证。
+     * 仅验证 UA 中包含 "Googlebot" 的请求。
+     *
+     * @return bool true=伪造Googlebot，false=真实Googlebot或非Googlebot
      */
-    private function has_valid_headers() {
-        $required = [ 'HTTP_ACCEPT', 'HTTP_ACCEPT_LANGUAGE', 'HTTP_ACCEPT_ENCODING' ];
-        foreach ( $required as $header ) {
-            if ( empty( $_SERVER[ $header ] ) ) {
-                return false;
-            }
-        }
-        return true;
-    }
+    private function is_fake_googlebot() {
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-    /**
-     * 判断当前请求是否为敏感页面（登录、后台）
-     *
-     * @return bool
-     */
-    private function is_sensitive_page() {
-        $uri = $_SERVER['REQUEST_URI'] ?? '';
-        return (bool) preg_match( '#/wp-(login|admin)#i', $uri );
-    }
-
-    /**
-     * 检查 Referer 是否无效（空或外部来源）
-     *
-     * @return bool
-     */
-    private function has_invalid_referer() {
-        $referer = $_SERVER['HTTP_REFERER'] ?? '';
-        if ( empty( $referer ) ) {
-            return true;
+        // 不是 Googlebot 则直接放行
+        if ( stripos( $ua, 'Googlebot' ) === false ) {
+            return false;
         }
-        $site_url = site_url();
-        return 0 !== strpos( $referer, $site_url );
+
+        $ip = \WpGuard\Utils\IP_Utils::get_ip();
+
+        // 验证失败即为伪造
+        $use_cache = ! empty( $this->settings['enable_cache'] );
+        return ! \WpGuard\Utils\Googlebot_Verifier::is_googlebot( $ip, $ua, $use_cache );
     }
 
     /**

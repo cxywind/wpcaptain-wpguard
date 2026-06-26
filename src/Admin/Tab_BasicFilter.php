@@ -20,10 +20,9 @@ class Tab_BasicFilter extends Tab_Base {
         $this->title      = __( '基础过滤', 'wpguard' );
         $this->option_key = 'basic_filter';
         $this->defaults   = [
-            'enable_empty_ua'      => 1,
-            'enable_fake_crawler'  => 1,
-            'enable_header_check'  => 1,
-            'enable_referer_check' => 0,
+            'enable_empty_ua'       => 1,
+            'enable_googlebot_check' => 0,
+            'enable_cache'          => 0,
         ];
     }
 
@@ -38,7 +37,7 @@ class Tab_BasicFilter extends Tab_Base {
             <?php wp_nonce_field( 'wpguard_save_' . $this->slug, 'wpguard_nonce' ); ?>
             <input type="hidden" name="action" value="wpguard_save_settings">
             <input type="hidden" name="tab" value="<?php echo esc_attr( $this->slug ); ?>">
-            <table class="form-table">
+                        <table class="form-table">
                 <!-- 空 UA 拦截 -->
                 <tr>
                     <th scope="row"><?php esc_html_e( '空 User-Agent', 'wpguard' ); ?> <span class="risk-low"><?php esc_html_e( '低风险', 'wpguard' ); ?></span></th>
@@ -46,25 +45,20 @@ class Tab_BasicFilter extends Tab_Base {
                         <label><input type="checkbox" name="settings[enable_empty_ua]" value="1" <?php checked( 1, $settings['enable_empty_ua'] ); ?>> <?php esc_html_e( '拦截 User-Agent 为空或过短的请求。', 'wpguard' ); ?></label>
                     </td>
                 </tr>
-                <!-- 伪造爬虫验证 -->
+                <!-- Googlebot 验证 -->
                 <tr>
-                    <th scope="row"><?php esc_html_e( '伪造搜索爬虫', 'wpguard' ); ?> <span class="risk-none"><?php esc_html_e( '无风险', 'wpguard' ); ?></span></th>
+                    <th scope="row"><?php esc_html_e( 'Googlebot 真实性验证', 'wpguard' ); ?> <span class="risk-none"><?php esc_html_e( '无风险', 'wpguard' ); ?></span></th>
                     <td>
-                        <label><input type="checkbox" name="settings[enable_fake_crawler]" value="1" <?php checked( 1, $settings['enable_fake_crawler'] ); ?>> <?php esc_html_e( '通过反向 DNS 验证 Google、Bing 等爬虫。拦截冒充者。', 'wpguard' ); ?></label>
+                        <label><input type="checkbox" name="settings[enable_googlebot_check]" value="1" <?php checked( 1, $settings['enable_googlebot_check'] ); ?>> <?php esc_html_e( '通过反向 DNS 验证 Googlebot 真实性，拦截冒充者。仅验证 UA 中包含 "Googlebot" 的请求。', 'wpguard' ); ?></label>
+                        <p class="description"><?php esc_html_e( 'Bing、Yandex 等其他爬虫验证请在「指纹检测」中配置。', 'wpguard' ); ?></p>
                     </td>
                 </tr>
-                <!-- 缺失标准请求头 -->
+                <!-- 爬虫验证缓存 -->
                 <tr>
-                    <th scope="row"><?php esc_html_e( '缺失浏览器头', 'wpguard' ); ?> <span class="risk-low"><?php esc_html_e( '低风险', 'wpguard' ); ?></span></th>
+                    <th scope="row"><?php esc_html_e( '爬虫验证缓存', 'wpguard' ); ?> <span class="risk-medium"><?php esc_html_e( '中风险', 'wpguard' ); ?></span></th>
                     <td>
-                        <label><input type="checkbox" name="settings[enable_header_check]" value="1" <?php checked( 1, $settings['enable_header_check'] ); ?>> <?php esc_html_e( '拦截缺少 Accept-Language、Accept-Encoding 等标准头的请求。', 'wpguard' ); ?></label>
-                    </td>
-                </tr>
-                <!-- Referer 保护 -->
-                <tr>
-                    <th scope="row"><?php esc_html_e( 'Referer 保护', 'wpguard' ); ?> <span class="risk-low"><?php esc_html_e( '低风险', 'wpguard' ); ?></span></th>
-                    <td>
-                        <label><input type="checkbox" name="settings[enable_referer_check]" value="1" <?php checked( 1, $settings['enable_referer_check'] ); ?>> <?php esc_html_e( '拦截直接访问登录/管理页面且没有本站 Referer 的请求。', 'wpguard' ); ?></label>
+                        <label><input type="checkbox" name="settings[enable_cache]" value="1" <?php checked( 1, $settings['enable_cache'] ); ?>> <?php esc_html_e( '启用爬虫验证结果缓存（24小时）。', 'wpguard' ); ?></label>
+                        <p class="description" style="color: #d63638;"><?php esc_html_e( '⚠️ 启用缓存后，已验证的爬虫 IP 结果将保存 24 小时。如果该 IP 在此期间被重新分配给恶意请求者，可能造成漏拦。建议仅在网站日均访问量超过 10,000 时开启。', 'wpguard' ); ?></p>
                     </td>
                 </tr>
             </table>
@@ -79,12 +73,11 @@ class Tab_BasicFilter extends Tab_Base {
      * @param array $input 表单提交数据
      * @return array
      */
-    protected function sanitize( $input ) {
+        protected function sanitize( $input ) {
         return [
-            'enable_empty_ua'      => ! empty( $input['enable_empty_ua'] ) ? 1 : 0,
-            'enable_fake_crawler'  => ! empty( $input['enable_fake_crawler'] ) ? 1 : 0,
-            'enable_header_check'  => ! empty( $input['enable_header_check'] ) ? 1 : 0,
-            'enable_referer_check' => ! empty( $input['enable_referer_check'] ) ? 1 : 0,
+            'enable_empty_ua'       => ! empty( $input['enable_empty_ua'] ) ? 1 : 0,
+            'enable_googlebot_check' => ! empty( $input['enable_googlebot_check'] ) ? 1 : 0,
+            'enable_cache'          => ! empty( $input['enable_cache'] ) ? 1 : 0,
         ];
     }
 }
