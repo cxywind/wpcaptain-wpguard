@@ -6,11 +6,11 @@
  * @since 1.0.0
  *
  * Plugin Name: WpGuard - 智能防护系统
- * Plugin URI:  https://example.com/wpguard
+ * Plugin URI:  https://www.wpcaptain.cn/
  * Description: 通过智能过滤、行为分析和 SEO 安全默认值保护 WordPress 免受 CC/DDoS 攻击。
- * Version:     1.0.4
- * Author:      Your Name
- * Author URI:  https://example.com
+ * Version:     1.1.0
+ * Author:      大禹
+ * Author URI:  https://www.web-sun.cn
  * License:     GPL-2.0+
  * Text Domain: wpguard
  * Domain Path: /languages
@@ -30,7 +30,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * 当前插件版本号
  */
-define( 'WPGUARD_VERSION', '1.0.3' );
+define( 'WPGUARD_VERSION', '1.1.0' );
 
 /**
  * 插件根目录路径（带结尾斜杠）
@@ -85,17 +85,22 @@ require_once WPGUARD_PATH . 'src/Whitelist/Crawler_Whitelist.php';
 require_once WPGUARD_PATH . 'src/Utils/Helpers.php';
 require_once WPGUARD_PATH . 'src/Utils/IP_Utils.php';
 
+// Googlebot 验证器（Fingerprint_Detection 依赖）
+require_once WPGUARD_PATH . 'src/Utils/Googlebot_Verifier.php';
+
 // 后台选项卡（依赖 Tab_Base）
 require_once WPGUARD_PATH . 'src/Admin/Tab_Base.php';
 require_once WPGUARD_PATH . 'src/Admin/Tab_BasicFilter.php';
 require_once WPGUARD_PATH . 'src/Admin/Tab_PathProtect.php';
 require_once WPGUARD_PATH . 'src/Admin/Tab_WhitelistLogs.php';
+require_once WPGUARD_PATH . 'src/Admin/Tab_Fingerprint.php';
 require_once WPGUARD_PATH . 'src/Admin/Settings.php';
 
 // 防护模块 —— 抽象父类必须在子类之前加载
 require_once WPGUARD_PATH . 'src/Protection/Base_Protection.php';
 require_once WPGUARD_PATH . 'src/Protection/Basic_Filter.php';
 require_once WPGUARD_PATH . 'src/Protection/Path_Protect.php';
+require_once WPGUARD_PATH . 'src/Protection/Fingerprint_Detection.php';
 require_once WPGUARD_PATH . 'src/Protection/Protection_Engine.php';
 
 // ---------------------------------------------------------------------

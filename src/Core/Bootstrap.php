@@ -30,6 +30,7 @@ class Bootstrap {
 
         add_action( 'plugins_loaded', [ $this, 'load_textdomain' ] );
         add_action( 'plugins_loaded', [ $this, 'init_modules' ], 5 );
+        add_action( 'plugins_loaded', [ $this, 'check_upgrade' ], 10 );
         register_activation_hook( WPGUARD_PATH . 'wpguard.php', [ $this, 'activate' ] );
         register_deactivation_hook( WPGUARD_PATH . 'wpguard.php', [ $this, 'deactivate' ] );
     }
@@ -64,6 +65,42 @@ class Bootstrap {
     }
 
     /**
+     * 检查插件升级，执行必要的数据库迁移
+     */
+        public function check_upgrade() {
+        $stored_version = get_option( 'wpguard_version', '1.0.0' );
+
+        if ( version_compare( $stored_version, '1.1.0', '<' ) ) {
+            // 升级到 1.1.0：确保日志表含有新字段
+            \WpGuard\Logger\Log_Handler::create_table();
+
+            // 设置默认的指纹检测选项
+            $fingerprint_defaults = [
+                'enabled'       => 0,
+                'block_level'   => 'strict',
+                'custom_groups' => [ 'ua', 'path' ],
+                'features'      => [
+                    'c2' => 1, 'c3' => 0,
+                    'p1' => 0, 'p2' => 0,
+                    'r1' => 0, 'r2' => 0, 'r3' => 0, 'r4' => 0,
+                    'b1' => 1,
+                ],
+                'rate_limits'   => [ 'r1' => 300, 'r2' => 30, 'r3' => 50, 'r4' => 20 ],
+                'block_action'  => 'error',
+                'http_code'     => 403,
+                'whitelist_ips' => '',
+                'log_only'      => 0,
+            ];
+            add_option( 'wpguard_fingerprint', $fingerprint_defaults );
+        }
+
+        // 更新存储的版本号
+        if ( version_compare( $stored_version, WPGUARD_VERSION, '<' ) ) {
+            update_option( 'wpguard_version', WPGUARD_VERSION );
+        }
+    }
+
+    /**
      * 插件激活时的回调
      *
      * 创建日志表，如果为网络激活则设置网络默认选项。
@@ -73,6 +110,8 @@ class Bootstrap {
         if ( is_multisite() && is_plugin_active_for_network( plugin_basename( WPGUARD_PATH . 'wpguard.php' ) ) ) {
             \WpGuard\Compatibility\Multisite::set_network_defaults();
         }
+        // 记录插件版本
+        add_option( 'wpguard_version', WPGUARD_VERSION );
     }
 
     /**

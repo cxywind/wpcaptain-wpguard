@@ -19,7 +19,7 @@ $table_name = $wpdb->prefix . 'wpguard_logs';
 $wpdb->query( "DROP TABLE IF EXISTS $table_name" );
 
 // 删除所有选项（单站点和多站点）
-$option_keys = [ 'basic_filter', 'path_protect', 'whitelist_logs' ];
+$option_keys = [ 'basic_filter', 'path_protect', 'whitelist_logs', 'fingerprint' ];
 foreach ( $option_keys as $key ) {
     delete_option( 'wpguard_' . $key );
     delete_option( 'wpguard_' . $key . '_custom' );

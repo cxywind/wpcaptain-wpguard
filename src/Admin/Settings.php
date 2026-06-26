@@ -37,9 +37,10 @@ class Settings {
     /**
      * 注册所有选项卡
      */
-    private function register_tabs() {
+        private function register_tabs() {
         $this->tabs[] = new Tab_BasicFilter();
         $this->tabs[] = new Tab_PathProtect();
+        $this->tabs[] = new Tab_Fingerprint();
         $this->tabs[] = new Tab_WhitelistLogs();
     }
 

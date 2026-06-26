@@ -45,7 +45,7 @@ class Log_Handler {
         $table_name = $wpdb->prefix . self::$table;
         $charset_collate = $wpdb->get_charset_collate();
 
-        $sql = "CREATE TABLE $table_name (
+                $sql = "CREATE TABLE $table_name (
             id BIGINT UNSIGNED AUTO_INCREMENT,
             blog_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
             timestamp DATETIME NOT NULL,
@@ -54,6 +54,8 @@ class Log_Handler {
             request_uri VARCHAR(2048) NOT NULL,
             reason VARCHAR(100) NOT NULL,
             status_code SMALLINT UNSIGNED NOT NULL DEFAULT 403,
+            hit_features VARCHAR(100) NOT NULL DEFAULT '',
+            perf_ms DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             PRIMARY KEY (id),
             KEY blog_id (blog_id),
             KEY timestamp (timestamp),
@@ -71,16 +73,18 @@ class Log_Handler {
      *
      * @param array $data 日志数据（reason, status_code 等）
      */
-    public static function log( $data ) {
+        public static function log( $data ) {
         global $wpguard_log_queue;
         $wpguard_log_queue[] = array_merge( [
-            'blog_id'     => get_current_blog_id(),
-            'timestamp'   => current_time( 'mysql' ),
-            'ip'          => \WpGuard\Utils\IP_Utils::get_ip(),
-            'ua'          => sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] ?? '' ),
-            'request_uri' => sanitize_text_field( $_SERVER['REQUEST_URI'] ?? '' ),
-            'reason'      => 'unknown',
-            'status_code' => 403,
+            'blog_id'      => get_current_blog_id(),
+            'timestamp'    => current_time( 'mysql' ),
+            'ip'           => \WpGuard\Utils\IP_Utils::get_ip(),
+            'ua'           => sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] ?? '' ),
+            'request_uri'  => sanitize_text_field( $_SERVER['REQUEST_URI'] ?? '' ),
+            'reason'       => 'unknown',
+            'status_code'  => 403,
+            'hit_features' => '',
+            'perf_ms'      => 0.00,
         ], $data );
     }
 
@@ -98,7 +102,7 @@ class Log_Handler {
         $table_name = $wpdb->prefix . self::$table;
         $values = [];
         $placeholders = [];
-        foreach ( $wpguard_log_queue as $entry ) {
+                foreach ( $wpguard_log_queue as $entry ) {
             $values[] = $entry['blog_id'];
             $values[] = $entry['timestamp'];
             $values[] = $entry['ip'];
@@ -106,10 +110,12 @@ class Log_Handler {
             $values[] = $entry['request_uri'];
             $values[] = $entry['reason'];
             $values[] = $entry['status_code'];
-            $placeholders[] = '(%d, %s, %s, %s, %s, %s, %d)';
+            $values[] = $entry['hit_features'];
+            $values[] = $entry['perf_ms'];
+            $placeholders[] = '(%d, %s, %s, %s, %s, %s, %d, %s, %f)';
         }
 
-        $query = "INSERT INTO $table_name (blog_id, timestamp, ip, ua, request_uri, reason, status_code) VALUES ";
+        $query = "INSERT INTO $table_name (blog_id, timestamp, ip, ua, request_uri, reason, status_code, hit_features, perf_ms) VALUES ";
         $query .= implode( ', ', $placeholders );
 
         $wpdb->query( $wpdb->prepare( $query, $values ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared

@@ -27,9 +27,10 @@ class Protection_Engine {
      * 注册模块并向 plugins_loaded 钩子挂载检查回调。
      * 此方法应在 WordPress 加载早期（plugins_loaded 之前）被调用。
      */
-    public static function init() {
+        public static function init() {
         self::$modules[] = new Basic_Filter();
         self::$modules[] = new Path_Protect();
+        self::$modules[] = new Fingerprint_Detection();
 
         // 使用较低的优先级（数字越小越早），确保在其他插件可能退出前执行
         add_action( 'plugins_loaded', [ __CLASS__, 'run_checks' ], 0 );
@@ -38,11 +39,11 @@ class Protection_Engine {
     /**
      * 依次运行所有防护检查
      *
-     * 跳过后台、WP-CLI 和 cron 请求。
+     * 各模块自行判断是否跳过后台、WP-CLI 和 cron 请求。
      */
     public static function run_checks() {
-        // 不拦截管理后台、命令行或计划任务
-        if ( is_admin() || defined( 'WP_CLI' ) || defined( 'DOING_CRON' ) ) {
+        // 命令行或计划任务直接跳过（所有模块都无需处理）
+        if ( defined( 'WP_CLI' ) || defined( 'DOING_CRON' ) ) {
             return;
         }
 

@@ -60,12 +60,17 @@ class Path_Protect extends Base_Protection {
         ] );
     }
 
-    /**
+        /**
      * 执行路径保护检查
      *
      * @return bool
      */
     public function check() {
+        // 后台请求放行（由 Fingerprint_Detection 处理未登录后台）
+        if ( is_admin() ) {
+            return false;
+        }
+
         $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         $parsed_path = parse_url( $request_uri, PHP_URL_PATH );
 
@@ -165,11 +170,15 @@ class Path_Protect extends Base_Protection {
      * @param string $reason 原因
      * @param int    $code   HTTP 状态码
      */
-    private function block( $reason, $code = 404 ) {
+        private function block( $reason, $code = 404 ) {
         \WpGuard\Logger\Log_Handler::log( [
             'reason'      => $reason,
             'status_code' => $code,
         ] );
+
+        // 在 die() 前提交日志队列，确保日志写入数据库
+        \WpGuard\Logger\Log_Handler::commit_queue();
+
         status_header( $code );
         die( 'Not found.' );
     }
